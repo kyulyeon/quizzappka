@@ -16,57 +16,6 @@
   var POINTS = QUIZ.pointsPerCorrect || 1;   // 정답 1개당 점수 (속도 무관)
   var SHAPES = ['▲', '◆', '●', '■', '★', '✚'];
 
-  var RULES = `{
-  "rules": {
-    ".read": false,
-    ".write": false,
-
-    "sessions": {
-      "$code": {
-        ".read": true,
-
-        "hostUid": {
-          ".write": "auth != null && !data.exists()",
-          ".validate": "newData.isString() && newData.val() === auth.uid"
-        },
-        "meta":    { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-        "state":   { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-        "scores":  { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-        "results": { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-        "final":   { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-        "banned":  { ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()" },
-
-        "players": {
-          "$pid": {
-            ".write": "auth != null && (auth.uid === root.child('sessions/'+$code+'/hostUid').val() || (auth.uid === $pid && !root.child('sessions/'+$code+'/banned/'+$pid).exists()))",
-            ".validate": "newData.hasChildren(['name','joinedAt']) && newData.child('name').isString() && newData.child('name').val().length <= 20"
-          }
-        }
-      }
-    },
-
-    "answers": {
-      "$code": {
-        ".read":  "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()",
-        ".write": "auth != null && auth.uid === root.child('sessions/'+$code+'/hostUid').val()",
-        "$q": {
-          "$pid": {
-            ".write": "auth != null && auth.uid === $pid && !data.exists() && !root.child('sessions/'+$code+'/banned/'+$pid).exists() && root.child('sessions/'+$code+'/state/phase').val() === 'question' && now <= (root.child('sessions/'+$code+'/state/startedAt').val() + root.child('sessions/'+$code+'/state/seconds').val() * 1000)",
-            ".validate": "newData.hasChildren(['opt','at']) && newData.child('opt').isNumber() && newData.child('opt').val() >= 0 && newData.child('opt').val() <= 5"
-          }
-        }
-      }
-    },
-
-    "alltime": {
-      ".read": true,
-      "$uid": {
-        ".write": "auth != null && newData.hasChildren(['name','score','code']) && root.child('sessions/'+newData.child('code').val()+'/hostUid').val() === auth.uid",
-        ".validate": "newData.hasChildren(['name','score','games']) && newData.child('score').isNumber()"
-      }
-    }
-  }
-}`;
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) {
@@ -758,52 +707,39 @@
   /* ------------------------------- 설정 ------------------------------- */
   function openSettings() {
     var cfg = Net.config();
-    $('#setPaste').value = cfg.db ? ('databaseURL: "' + cfg.db + '",\napiKey: "' + cfg.key + '"') : '';
+    $('#setPaste').value = cfg.db
+      ? ['databaseURL: "' + cfg.db + '",', 'apiKey: "' + cfg.key + '"'].join(String.fromCharCode(10))
+      : '';
     $('#setCode').value = cfg.code || '';
-    $('#rulesText').textContent = RULES;
     $('#settings').hidden = false;
-    detectConfig();
-  }
-
-  function detectConfig() {
-    var p = Net.parseInput($('#setPaste').value);
-    var el = $('#setDetect');
-    if (!p.db && !p.key && !p.projectId) { el.textContent = '아직 인식된 값이 없습니다.'; el.className = 'detect'; return; }
-    el.className = 'detect ' + (p.key ? 'ok' : '');
-    el.innerHTML = 'API 키: <b>' + (p.key ? '확인' : '없음') + '</b>' +
-      '<br />DB 주소: <b>' + esc(p.db || (p.projectId ? '설정 코드에 없음 → 자동으로 찾습니다' : '없음')) + '</b>' +
-      (p.projectId ? '<br />프로젝트: <b>' + esc(p.projectId) + '</b>' : '');
-  }
-
-  function runDiag() {
-    var box = $('#diagList');
-    if (!box) return;
-    box.innerHTML = '<li class="diag-wait">확인 중…</li>';
-    Net.diagnose().then(function (steps) {
-      box.innerHTML = steps.map(function (s) {
-        return '<li class="' + (s.ok ? 'ok' : 'bad') + '">' +
-            '<span class="ic">' + (s.ok ? '✓' : '✗') + '</span>' +
-            '<span class="tx"><b>' + esc(s.name) + '</b> ' + esc(s.detail) +
-            (s.fix && !s.ok ? '<em>' + esc(s.fix) + '</em>' : '') +
-            '</span></li>';
-      }).join('');
-      var bad = steps.filter(function (s) { return !s.ok; }).length;
-      if (!bad) toast('연결 진단: 모두 정상입니다');
-    }).catch(function (e) {
-      box.innerHTML = '<li class="bad"><span class="ic">✗</span><span class="tx"><b>진단 실패</b> ' + esc(e.message) + '</span></li>';
-    });
   }
 
   function saveSettings() {
     var p = Net.parseInput($('#setPaste').value);
-    var code = ($('#setCode').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || Net.randomCode();
-    if (!p.db || !p.key) {
-      alert('Firebase 설정 코드에서 databaseURL 과 apiKey 를 찾지 못했습니다.\n\n' +
-        'Firebase 콘솔 → 프로젝트 설정(톱니) → 내 앱 → "SDK 설정 및 구성" 코드를 그대로 붙여넣어 주세요.');
+
+    if (!p.key) {
+      alert('apiKey 를 찾지 못했습니다. databaseURL 과 apiKey 두 줄을 그대로 붙여넣어 주세요.');
       return;
     }
-    Net.saveCfg({ db: p.db, key: p.key, code: code });
-    location.reload();
+
+    var code = ($('#setCode').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || Net.randomCode();
+    Net.saveCfg({ key: p.key, projectId: p.projectId });
+
+    if (p.db) {
+      Net.saveCfg({ db: p.db, code: code });
+      location.reload();
+      return;
+    }
+
+    toast('DB 주소를 찾는 중…');
+    Net.detectDb(p.projectId).then(function (db) {
+      if (!db) {
+        alert('databaseURL 을 찾지 못했습니다. databaseURL 줄도 함께 붙여넣어 주세요.');
+        return;
+      }
+      Net.saveCfg({ db: db, code: code });
+      location.reload();
+    });
   }
 
   /* ------------------------------- 이벤트 ------------------------------- */
@@ -819,7 +755,7 @@
       var t = e.target;
 
       if (t.closest('#btnStart')) return startQuiz();
-      if (t.closest('#btnNewRoom') || t.closest('#setNewRoom')) return newRoom();
+      if (t.closest('#btnNewRoom')) return newRoom();
       if (t.closest('#btnResume')) return resumeRound();
       if (t.closest('#btnNext')) return next();
       if (t.closest('#btnRestart')) return restart();
@@ -828,14 +764,7 @@
       if (t.closest('#btnSettings')) return openSettings();
       if (t.closest('#btnCopy') || t.closest('#joinCode')) return copy(H.link, '참가 링크를 복사했어요!');
       if (t.closest('#setSave')) return saveSettings();
-      if (t.closest('#btnDiag')) return runDiag();
       if (t.closest('#setCancel')) { $('#settings').hidden = true; return; }
-      if (t.closest('#setRulesCopy')) return copy(RULES, '보안 규칙을 복사했어요! Firebase → 규칙 탭에 붙여넣고 게시하세요.');
-      if (t.closest('#setLocal')) {
-        Net.saveCfg({ db: '', key: '' });
-        location.reload();
-        return;
-      }
       if (t.closest('#btnSound')) {
         H.sound = !H.sound;
         $('#btnSound').textContent = H.sound ? '🔊' : '🔇';
@@ -855,7 +784,6 @@
       if (H.phase === 'reveal' && t.closest('.ans')) return next();
     });
 
-    $('#setPaste').addEventListener('input', detectConfig);
 
     document.addEventListener('keydown', function (e) {
       var tag = (e.target.tagName || '').toLowerCase();
