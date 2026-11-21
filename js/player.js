@@ -18,6 +18,16 @@
     });
   }
 
+  /* 문자열 배열 변환 (Firebase 는 배열을 {0:..,1:..} 객체로 저장) */
+  function asStrList(v) {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.map(function (x) { return String(x); });
+    if (typeof v !== 'object') return [];
+    return Object.keys(v)
+      .sort(function (a, b) { return Number(a) - Number(b); })
+      .map(function (k) { return String(v[k]); });
+  }
+
   /* Firebase Realtime DB 는 배열을 {0:..,1:..} 객체로 저장하므로 항상 배열로 되돌린다 */
   function asList(v) {
     if (!v) return [];
@@ -27,6 +37,10 @@
       .sort(function (a, b) { return Number(a) - Number(b); })
       .map(function (k) { return v[k]; })
       .filter(function (x) { return x && typeof x === 'object'; });
+  }
+
+  function QN() {
+    return (P.snap && P.snap.state && P.snap.state.total) || TOTAL;
   }
 
   var params = new URLSearchParams(location.search);
@@ -111,7 +125,10 @@
     if (state.phase === 'end') return screenEnd(state);
 
     var qi = state.qi;
-    var item = QUIZ.questions[qi];
+    var qOpts = asStrList(state.q && state.q.o);
+    var item = qOpts.length
+      ? { q: (state.q && state.q.t) || '', part: (state.q && state.q.p) || '', options: qOpts }
+      : QUIZ.questions[qi];
     if (!item) return msg('대기 중', '문제를 불러오는 중…', false);
 
     if (state.phase === 'reveal') return screenReveal(state, item);
@@ -149,7 +166,7 @@
     var st = $('#pStage');
     st.innerHTML = '<div class="p-join">' +
         '<h1>유하경 능력고사</h1>' +
-        '<p class="p-sub">세션 <b>' + esc(CODE) + '</b> · 전체 ' + TOTAL + '문제</p>' +
+        '<p class="p-sub">세션 <b>' + esc(CODE) + '</b> · 전체 ' + QN() + '문제</p>' +
         '<input id="nameInput" class="p-input" maxlength="12" placeholder="닉네임 입력" autocomplete="off" />' +
         '<button class="btn primary big block" id="btnJoin">참가하기</button>' +
         '<p class="hint">닉네임은 리더보드에 표시됩니다.</p>' +
@@ -221,7 +238,7 @@
 
     $('#pStage').innerHTML = '<div class="p-question">' +
         '<div class="p-qtop">' +
-          '<span class="chip">Q' + (state.qi + 1) + ' / ' + TOTAL + '</span>' +
+          '<span class="chip">Q' + (state.qi + 1) + ' / ' + QN() + '</span>' +
           '<span class="chip ghost" id="pCd">' + (left === null ? QUIZ.seconds : Math.ceil(left / 1000)) + '초</span>' +
         '</div>' +
         '<h2 class="p-qtitle">' + esc(item.q) + '</h2>' +
@@ -301,7 +318,7 @@
         '<p class="p-picked">내 답: <b>' + (opt == null ? '제출됨' : (SHAPES[opt] || '') + ' ' + esc(text)) + '</b></p>' +
         (P.note ? '<p class="p-note">' + esc(P.note) + '</p>' : '') +
         '<p class="p-sub">정답 공개를 기다리는 중…</p>' +
-        '<div class="p-progress-note">Q' + (state.qi + 1) + ' / ' + TOTAL + '</div>' +
+        '<div class="p-progress-note">Q' + (state.qi + 1) + ' / ' + QN() + '</div>' +
       '</div>';
   }
 
@@ -325,14 +342,14 @@
     var score = ((P.snap.scores || {})[Net.uid()]) || { score: 0, correct: 0 };
 
     $('#pStage').innerHTML = '<div class="p-reveal">' +
-        '<div class="p-qtop"><span class="chip">Q' + (state.qi + 1) + ' / ' + TOTAL + '</span>' +
+        '<div class="p-qtop"><span class="chip">Q' + (state.qi + 1) + ' / ' + QN() + '</span>' +
           '<span class="chip ghost">' + esc(item.part || '') + '</span></div>' +
         '<h2 class="p-qtitle small">' + esc(item.q) + '</h2>' +
         verdict +
         '<div class="p-answer"><span class="tag">정답</span>' +
           '<b>' + (SHAPES[correct] || '') + ' ' + (correct + 1) + '번</b>' +
           '<span>' + esc(correctText) + '</span></div>' +
-        '<div class="p-scoreline">내 점수 <b>' + score.score + '</b>점 (' + score.correct + '/' + TOTAL + ' 정답)</div>' +
+        '<div class="p-scoreline">내 점수 <b>' + score.score + '</b>점 (' + score.correct + '/' + QN() + ' 정답)</div>' +
         '<p class="p-sub">다음 문제를 기다리는 중…</p>' +
       '</div>';
   }
@@ -366,7 +383,7 @@
 
     var mineCard = me
       ? '<div class="p-myrank"><div class="big">' + (idx + 1) + '위</div>' +
-          '<div class="sub">' + me.score + '점 · ' + me.correct + '/' + TOTAL + ' 정답</div></div>'
+          '<div class="sub">' + me.score + '점 · ' + me.correct + '/' + QN() + ' 정답</div></div>'
       : '';
 
     $('#pStage').innerHTML = '<div class="p-end">' +

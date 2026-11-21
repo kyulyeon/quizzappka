@@ -84,6 +84,28 @@ apiKey: "AIzaSy..."'></textarea>
   </div>
 </div>
 
+<div class="modal" id="editor" hidden>
+  <div class="modal-card editor">
+    <div class="editor-head">
+      <h3>문제 편집 <span class="count" id="edCount">0</span></h3>
+      <div class="editor-tools">
+        <button class="btn tiny ghost" id="edAll">전체 선택</button>
+        <button class="btn tiny ghost" id="edNone">전체 해제</button>
+        <button class="btn tiny ghost" id="edReset">기본값</button>
+      </div>
+    </div>
+
+    <div class="editor-list" id="editorList"></div>
+
+    <div class="editor-foot">
+      <button class="btn" id="edAdd">+ 새 문제</button>
+      <span class="hint">체크한 문제만 이번 판에 출제됩니다 · 정답은 보기 번호 선택</span>
+      <button class="btn ghost" id="edClose">닫기</button>
+      <button class="btn primary" id="edSave">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="js/questions.js"></script>

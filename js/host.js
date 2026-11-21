@@ -10,7 +10,56 @@
 
   var QUIZ = window.QUIZ;
   var Net = window.Net;
-  var TOTAL = QUIZ.questions.length;
+  /* -------------------- 문제 은행 (편집/선택/저장) -------------------- */
+  var BANK_KEY = 'hg.quiz.bank';
+  var PICK_KEY = 'hg.quiz.pick';
+
+  function newId() { return 'q' + Math.random().toString(36).slice(2, 9); }
+
+  function normalizeQ(o) {
+    var opts = (o.options || []).slice();
+    while (opts.length < 2) opts.push('');
+    var ans = parseInt(o.answer, 10);
+    if (!(ans >= 1 && ans <= opts.length)) ans = 1;
+    return {
+      id: o.id || newId(),
+      part: o.part || '내가 만든 문제',
+      q: o.q || '',
+      options: opts,
+      answer: ans
+    };
+  }
+
+  function loadBank() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(BANK_KEY) || 'null');
+      if (Array.isArray(raw) && raw.length) return raw.map(normalizeQ);
+    } catch (e) {}
+    return QUIZ.questions.map(function (item, i) {
+      return normalizeQ({
+        id: 'd' + i, part: item.part, q: item.q,
+        options: item.options.slice(), answer: item.answer
+      });
+    });
+  }
+
+  function loadPick(bank) {
+    try {
+      var raw = JSON.parse(localStorage.getItem(PICK_KEY) || 'null');
+      if (Array.isArray(raw)) return raw;
+    } catch (e) {}
+    return bank.map(function (x) { return x.id; });
+  }
+
+  var BANK = loadBank();
+
+  function refreshList() {
+    var picked = {};
+    H.picked.forEach(function (id) { picked[id] = 1; });
+    H.list = BANK.filter(function (x) { return picked[x.id]; });
+  }
+
+  function total() { return H.list.length; }
   var DEFAULT_SECS = QUIZ.seconds || 15;
 
   function storedSecs() {
@@ -31,6 +80,7 @@
 
   var H = {
     code: '', link: '', ready: false,
+    list: [], picked: [], draft: null, draftPick: null,
     phase: 'lobby', qi: -1, correct: null,
     endsAt: 0, serverEndsAt: 0, qStart: 0, skew: 0,
     players: {}, banned: {}, answers: {}, results: {}, state: {}, scoresDb: {}, final: null,
@@ -42,8 +92,8 @@
     hallLoaded: false
   };
 
-  function cIdx(i) { return QUIZ.questions[i].answer - 1; }
-  function qOf(i) { return QUIZ.questions[i]; }
+  function cIdx(i) { return (qOf(i).answer || 1) - 1; }
+  function qOf(i) { return H.list[i] || { q: '', options: [], answer: 1, part: '' }; }
 
   /* ------------------------------- 사운드 ------------------------------- */
   var ac = null;
@@ -324,7 +374,8 @@
         (QUIZ.poster ? '<img class="poster" src="' + esc(QUIZ.poster) + '" alt="포스터" />' : '') +
         '<div class="kicker">QUIZ SHOW</div>' +
         '<h1>유하경 능력고사</h1>' +
-        '<p class="sub">전체 <b>' + TOTAL + '문제</b> · 문제당 <b>' + H.secs + '초</b> · 정답 공개 후 자동 채점</p>' +
+        '<p class="sub">이번 판 <b>' + total() + '문제</b>' + (BANK.length !== total() ? ' (전체 ' + BANK.length + ')' : '') +
+          ' · 문제당 <b>' + H.secs + '초</b> · 정답 공개 후 자동 채점</p>' +
         '<div class="lobby-badges">' +
           '<span class="pill">참가 코드 <b>' + esc(H.code) + '</b></span>' +
           '<span class="pill">참가자 <b>' + Object.keys(H.players).length + '</b>명</span>' +
@@ -332,6 +383,7 @@
         resume +
         '<div class="lobby-actions">' +
           '<button class="btn primary big" id="btnStart">새로 시작하기</button>' +
+          '<button class="btn ghost" id="btnEdit">문제 편집</button>' +
           '<button class="btn ghost" id="btnNewRoom">새 방 만들기 (코드 변경)</button>' +
         '</div>' +
         '<p class="hint">Space = 시작 · 정답 공개 · 다음 문제 &nbsp;|&nbsp; R = 처음부터 &nbsp;|&nbsp; F = 전체화면</p>' +
@@ -368,7 +420,7 @@
             '<span class="reveal-num">' + (SHAPES[ans] || '') + ' ' + (ans + 1) + '번</span>' +
             '<span class="reveal-txt">' + esc(item.options[ans]) + '</span>' +
           '</div>' +
-          '<button class="btn primary big" id="btnNext">' + (i + 1 >= TOTAL ? '최종 결과 보기' : '다음 문제') + ' →</button>' +
+          '<button class="btn primary big" id="btnNext">' + (i + 1 >= total() ? '최종 결과 보기' : '다음 문제') + ' →</button>' +
         '</div>'
       : '<div class="timer-row">' +
           '<div class="live-count" id="liveCount">' + answeredCount(i) + ' / ' + Object.keys(H.players).length + '명 응답</div>' +
@@ -379,7 +431,7 @@
     return '<div class="q-wrap' + (revealed ? ' is-reveal' : '') + '">' +
         '<div class="q-top">' +
           '<span class="chip">' + esc(item.part || '') + '</span>' +
-          '<span class="chip ghost">Q' + (i + 1) + ' / ' + TOTAL + '</span>' +
+          '<span class="chip ghost">Q' + (i + 1) + ' / ' + total() + '</span>' +
         '</div>' +
         '<h2 class="q-title">' + esc(item.q) + '</h2>' +
         '<div class="ans-grid n' + item.options.length + '">' + opts + '</div>' +
@@ -395,7 +447,7 @@
           '<div class="medal">' + medal[i] + '</div>' +
           '<div class="pod-name">' + esc(p.name) + '</div>' +
           '<div class="pod-score">' + p.score + '<small>점</small></div>' +
-          '<div class="pod-correct">' + p.correct + ' / ' + TOTAL + ' 정답</div>' +
+          '<div class="pod-correct">' + p.correct + ' / ' + total() + ' 정답</div>' +
         '</div>';
     }).join('');
 
@@ -491,15 +543,23 @@
     startTimer();
     startAnswerPoll();
 
+    var item = qOf(i);
     Net.setState({
       phase: 'question', qi: i, startedAt: Net.sv(), ts: Net.sv(),
-      seconds: H.qSecs, correct: null, total: TOTAL
+      seconds: H.qSecs, correct: null, total: total(),
+      q: { t: item.q, p: item.part || '', o: item.options }
     }).catch(function (e) { toast('문제 시작 저장 실패: ' + e.message); });
   }
 
   function startQuiz() {
     if (H.phase !== 'lobby' && H.phase !== 'end') return;
     if (!H.ready) { toast('아직 연결 중입니다…'); return; }
+    refreshList();
+    if (!total()) {
+      toast('출제할 문제를 1개 이상 선택하세요');
+      openEditor();
+      return;
+    }
     H.results = {};
     H.answers = {};
     H.resume = null;
@@ -542,7 +602,7 @@
         .then(function () {
           return Net.setState({
             phase: 'reveal', qi: qi, startedAt: H.qStart || 0, ts: Net.sv(),
-            seconds: H.qSecs, correct: correct, total: TOTAL
+            seconds: H.qSecs, correct: correct, total: total()
           });
         })
         .catch(function (e) { toast('채점 저장 실패: ' + e.message); })
@@ -552,7 +612,7 @@
 
   function next() {
     if (H.phase !== 'reveal') return;
-    if (H.qi + 1 >= TOTAL) return finish();
+    if (H.qi + 1 >= total()) return finish();
     openQuestion(H.qi + 1);
   }
 
@@ -569,7 +629,7 @@
       rank: rows.map(function (p) { return { uid: p.id, name: p.name, score: p.score, correct: p.correct }; })
     }).catch(function () {});
 
-    Net.setState({ phase: 'end', qi: H.qi, startedAt: H.qStart || 0, ts: Net.sv(), seconds: H.qSecs, correct: H.correct, total: TOTAL })
+    Net.setState({ phase: 'end', qi: H.qi, startedAt: H.qStart || 0, ts: Net.sv(), seconds: H.qSecs, correct: H.correct, total: total() })
       .catch(function () {});
 
     Net.writeAllTime(rows.map(function (p) {
@@ -630,7 +690,7 @@
       H.resume = null;
       openQuestion(r.qi);
     } else {
-      H.qi = typeof H.state.qi === 'number' ? H.state.qi : TOTAL - 1;
+      H.qi = typeof H.state.qi === 'number' ? H.state.qi : total() - 1;
       H.phase = 'end';
       H.resume = null;
       H.stageSig = '';
@@ -713,6 +773,142 @@
     else document.exitFullscreen && document.exitFullscreen();
   }
 
+  /* ----------------------------- 문제 편집기 ----------------------------- */
+  function openEditor() {
+    H.draft = BANK.map(function (x) { return JSON.parse(JSON.stringify(x)); });
+    H.draftPick = {};
+    H.picked.forEach(function (id) { H.draftPick[id] = true; });
+    renderEditor();
+    $('#editor').hidden = false;
+  }
+
+  function renderEditor() {
+    var box = $('#editorList');
+    if (!box) return;
+
+    box.innerHTML = H.draft.map(function (item, i) {
+      var opts = item.options.map(function (o, k) {
+        var n = k + 1;
+        return '<label class="ed-opt">' +
+            '<input type="radio" name="ans' + i + '" value="' + n + '"' + (item.answer === n ? ' checked' : '') + ' />' +
+            '<span class="ed-num">' + n + '</span>' +
+            '<input class="ed-opt-input" value="' + esc(o) + '" placeholder="보기 ' + n + '" />' +
+          '</label>';
+      }).join('');
+
+      return '<div class="ed-row' + (H.draftPick[item.id] ? '' : ' off') + '" data-id="' + item.id + '">' +
+          '<label class="ed-check" title="이번 판에 출제">' +
+            '<input type="checkbox" data-pick' + (H.draftPick[item.id] ? ' checked' : '') + ' />' +
+          '</label>' +
+          '<div class="ed-main">' +
+            '<input class="ed-q" value="' + esc(item.q) + '" placeholder="질문을 입력하세요" />' +
+            '<div class="ed-opts">' + opts + '</div>' +
+          '</div>' +
+          '<button class="ed-del" data-del="' + item.id + '" title="삭제">🗑</button>' +
+        '</div>';
+    }).join('') || '<p class="empty-big">문제가 없습니다. + 새 문제를 눌러 추가하세요.</p>';
+
+    updateEditorCount();
+  }
+
+  function collectDraft() {
+    var rows = document.querySelectorAll('#editorList .ed-row');
+    Array.prototype.forEach.call(rows, function (row) {
+      var id = row.getAttribute('data-id');
+      var item = null;
+      for (var i = 0; i < H.draft.length; i++) { if (H.draft[i].id === id) item = H.draft[i]; }
+      if (!item) return;
+
+      item.q = (row.querySelector('.ed-q').value || '').trim();
+      item.options = Array.prototype.map.call(row.querySelectorAll('.ed-opt-input'), function (x) {
+        return (x.value || '').trim();
+      });
+      item.answer = 1;
+      Array.prototype.forEach.call(row.querySelectorAll('input[type=radio]'), function (r) {
+        if (r.checked) item.answer = parseInt(r.value, 10) || 1;
+      });
+      H.draftPick[id] = !!row.querySelector('[data-pick]').checked;
+      row.classList.toggle('off', !H.draftPick[id]);
+    });
+  }
+
+  function updateEditorCount() {
+    var el = $('#edCount');
+    if (!el) return;
+    var n = document.querySelectorAll('#editorList [data-pick]:checked').length;
+    el.textContent = '전체 ' + H.draft.length + ' · 출제 ' + n;
+  }
+
+  function addQuestion() {
+    collectDraft();
+    var item = normalizeQ({ id: newId(), q: '', options: ['', '', '', ''], answer: 1 });
+    H.draft.push(item);
+    H.draftPick[item.id] = true;
+    renderEditor();
+    var rows = document.querySelectorAll('#editorList .ed-row');
+    var last = rows[rows.length - 1];
+    if (last) {
+      if (last.scrollIntoView) last.scrollIntoView({ block: 'nearest' });
+      var inp = last.querySelector('.ed-q');
+      if (inp) inp.focus();
+    }
+  }
+
+  function deleteQuestion(id) {
+    collectDraft();
+    H.draft = H.draft.filter(function (x) { return x.id !== id; });
+    delete H.draftPick[id];
+    renderEditor();
+  }
+
+  function setAllPicked(flag) {
+    collectDraft();
+    H.draft.forEach(function (x) { H.draftPick[x.id] = !!flag; });
+    renderEditor();
+  }
+
+  function resetBank() {
+    if (!window.confirm('문제를 기본 35문제로 되돌릴까요? (직접 만든 문제는 사라집니다)')) return;
+    BANK = QUIZ.questions.map(function (item, i) {
+      return normalizeQ({ id: 'd' + i, part: item.part, q: item.q, options: item.options.slice(), answer: item.answer });
+    });
+    H.picked = BANK.map(function (x) { return x.id; });
+    H.draft = BANK.map(function (x) { return JSON.parse(JSON.stringify(x)); });
+    H.draftPick = {};
+    H.draft.forEach(function (x) { H.draftPick[x.id] = true; });
+    renderEditor();
+  }
+
+  function saveEditor() {
+    collectDraft();
+
+    var pickedIds = H.draft.filter(function (x) { return H.draftPick[x.id]; }).map(function (x) { return x.id; });
+    if (!pickedIds.length) { toast('출제할 문제를 1개 이상 선택하세요'); return; }
+
+    var bad = '';
+    H.draft.forEach(function (item) {
+      if (!H.draftPick[item.id]) return;
+      if (!item.q) bad = bad || '질문이 비어 있는 문제가 있어요';
+      var filled = item.options.filter(function (o) { return o; }).length;
+      if (filled < 2) bad = bad || '보기가 2개보다 적은 문제가 있어요';
+      if (!item.options[item.answer - 1]) bad = bad || '정답 보기가 비어 있는 문제가 있어요';
+    });
+    if (bad) { toast(bad); return; }
+
+    BANK = H.draft.map(normalizeQ);
+    H.picked = pickedIds;
+    try {
+      localStorage.setItem(BANK_KEY, JSON.stringify(BANK));
+      localStorage.setItem(PICK_KEY, JSON.stringify(H.picked));
+    } catch (e) {}
+
+    refreshList();
+    $('#editor').hidden = true;
+    H.stageSig = '';
+    renderAll();
+    toast('저장 완료 · 전체 ' + BANK.length + '문제 중 ' + total() + '문제 출제');
+  }
+
   /* ------------------------------- 설정 ------------------------------- */
   function openSettings() {
     var cfg = Net.config();
@@ -782,6 +978,15 @@
 
       if (t.closest('#btnStart')) return startQuiz();
       if (t.closest('#btnNewRoom')) return newRoom();
+      if (t.closest('#btnEdit')) return openEditor();
+      if (t.closest('#edAdd')) return addQuestion();
+      if (t.closest('#edSave')) return saveEditor();
+      if (t.closest('#edClose')) { $('#editor').hidden = true; return; }
+      if (t.closest('#edAll')) return setAllPicked(true);
+      if (t.closest('#edNone')) return setAllPicked(false);
+      if (t.closest('#edReset')) return resetBank();
+      var dq = t.closest('[data-del]');
+      if (dq) return deleteQuestion(dq.getAttribute('data-del'));
       if (t.closest('#btnResume')) return resumeRound();
       if (t.closest('#btnNext')) return next();
       if (t.closest('#btnRestart')) return restart();
@@ -820,6 +1025,17 @@
       else if (e.key === 'r' || e.key === 'R') restart();
       else if (e.key === 'f' || e.key === 'F') toggleFull();
       else if (e.key === 's' || e.key === 'S') openSettings();
+      else if (e.key === 'Escape') {
+        if (!$('#editor').hidden) { $('#editor').hidden = true; }
+        else if (!$('#settings').hidden) { $('#settings').hidden = true; }
+      }
+    });
+
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.closest && e.target.closest('#editorList')) updateEditorCount();
+    });
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.closest && e.target.closest('#editorList')) updateEditorCount();
     });
 
     var secInput = $('#setSeconds');
@@ -854,6 +1070,8 @@
     Net.setRole('host');
     H.secs = storedSecs();
     H.qSecs = H.secs;
+    H.picked = loadPick(BANK);
+    refreshList();
     Net.onChange(function (snap) { ingest(snap); renderSide(); renderStage(); });
     Net.onStatus(renderStatus);
 
@@ -886,7 +1104,7 @@
     Net.connect()
       .then(function () { return Net.claimHost(); })
       .then(function () {
-        return Net.setMeta({ title: QUIZ.title, seconds: H.secs, total: TOTAL });
+        return Net.setMeta({ title: QUIZ.title, seconds: H.secs, total: total() });
       })
       .then(function () {
         H.ready = true;
