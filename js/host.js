@@ -13,6 +13,7 @@
   var TOTAL = QUIZ.questions.length;
   var SECS = QUIZ.seconds || 15;
   var LIMIT = SECS * 1000;
+  var POINTS = QUIZ.pointsPerCorrect || 1;   // 정답 1개당 점수 (속도 무관)
   var SHAPES = ['▲', '◆', '●', '■', '★', '✚'];
 
   var RULES = `{
@@ -442,20 +443,12 @@
         '</div>';
     }).join('');
 
-    var list = rows.map(function (p, i) {
-      return '<li class="final-row' + (i < 3 ? ' is-top' : '') + '">' +
-          '<span class="rk">' + (i + 1) + '</span>' +
-          '<span class="nm">' + esc(p.name) + '</span>' +
-          '<span class="cr">' + p.correct + '/' + TOTAL + '</span>' +
-          '<span class="pt">' + p.score + '</span>' +
-        '</li>';
-    }).join('');
-
     return '<div class="end-wrap">' +
         '<div class="kicker">FINAL RESULT</div>' +
         '<h2 class="end-title">최종 순위</h2>' +
         (rows.length
-          ? '<div class="podium">' + podium + '</div><ol class="final-list">' + list + '</ol>'
+          ? '<div class="podium">' + podium + '</div>' +
+            '<p class="end-note">TOP 3 · 전체 순위는 <b>CSV 저장</b>으로 확인할 수 있어요</p>'
           : '<p class="empty-big">참가자가 없습니다.</p>') +
         '<div class="end-actions">' +
           '<button class="btn primary" id="btnRestart">새 라운드 시작</button>' +
@@ -575,10 +568,7 @@
         var a = src[pid];
         if (!a || typeof a.opt !== 'number') return;
         var ok = a.opt === correct;
-        var left = (typeof a.at === 'number' && H.serverEndsAt)
-          ? Math.max(0, H.serverEndsAt - a.at)
-          : Math.max(0, Math.min(LIMIT, a.left || 0));
-        map[pid] = { ok: ok, pts: ok ? 500 + Math.round(500 * Math.min(1, left / LIMIT)) : 0 };
+        map[pid] = { ok: ok, pts: ok ? POINTS : 0 };   // 속도 보너스 없음
       });
 
       H.results[qi] = map;
@@ -694,7 +684,7 @@
   function manual(pid, ok) {
     if (H.phase !== 'reveal' || H.qi < 0) return;
     H.results[H.qi] = H.results[H.qi] || {};
-    H.results[H.qi][pid] = { ok: ok, pts: ok ? 500 : 0, manual: true };
+    H.results[H.qi][pid] = { ok: ok, pts: ok ? POINTS : 0, manual: true };
     H.sideSig = '';
     renderSide();
     Net.setResult(H.qi, H.results[H.qi]).catch(function () {});

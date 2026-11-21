@@ -18,6 +18,17 @@
     });
   }
 
+  /* Firebase Realtime DB 는 배열을 {0:..,1:..} 객체로 저장하므로 항상 배열로 되돌린다 */
+  function asList(v) {
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (typeof v !== 'object') return [];
+    return Object.keys(v)
+      .sort(function (a, b) { return Number(a) - Number(b); })
+      .map(function (k) { return v[k]; })
+      .filter(function (x) { return x && typeof x === 'object'; });
+  }
+
   var params = new URLSearchParams(location.search);
   var CODE = (params.get('s') || '').toUpperCase();
   var DB = params.get('db') || '';
@@ -321,7 +332,7 @@
         '<div class="p-answer"><span class="tag">정답</span>' +
           '<b>' + (SHAPES[correct] || '') + ' ' + (correct + 1) + '번</b>' +
           '<span>' + esc(correctText) + '</span></div>' +
-        '<div class="p-scoreline">내 점수 <b>' + score.score + '</b>점 · ' + score.correct + '/' + TOTAL + ' 정답</div>' +
+        '<div class="p-scoreline">내 점수 <b>' + score.score + '</b>점 (' + score.correct + '/' + TOTAL + ' 정답)</div>' +
         '<p class="p-sub">다음 문제를 기다리는 중…</p>' +
       '</div>';
   }
@@ -329,9 +340,11 @@
   function screenEnd(state) {
     var uid = Net.uid();
     var final = (P.snap && P.snap.final) || null;
-    var rank = (final && final.rank) || null;
+    var rank = asList(final && final.rank).sort(function (a, b) {
+      return (b.score || 0) - (a.score || 0) || (b.correct || 0) - (a.correct || 0);
+    });
 
-    if (!rank) {
+    if (!rank.length) {
       var scores = (P.snap && P.snap.scores) || {};
       rank = Object.keys(scores).map(function (pid) {
         var s = scores[pid] || {};
@@ -344,20 +357,24 @@
     var me = idx >= 0 ? rank[idx] : null;
     var medal = ['🥇', '🥈', '🥉'];
 
-    var top = rank.slice(0, 5).map(function (r, i) {
+    var top = rank.slice(0, 3).map(function (r, i) {
       return '<li class="p-rank-row' + (r.uid === uid ? ' me' : '') + '">' +
           '<span class="rk">' + (medal[i] || i + 1) + '</span>' +
           '<span class="nm">' + esc(r.name) + '</span>' +
-          '<span class="pt">' + r.score + '</span></li>';
+          '<span class="pt">' + r.score + '점</span></li>';
     }).join('');
+
+    var mineCard = me
+      ? '<div class="p-myrank"><div class="big">' + (idx + 1) + '위</div>' +
+          '<div class="sub">' + me.score + '점 · ' + me.correct + '/' + TOTAL + ' 정답</div></div>'
+      : '';
 
     $('#pStage').innerHTML = '<div class="p-end">' +
         '<h2>최종 결과</h2>' +
-        (me
-          ? '<div class="p-myrank"><div class="big">' + (idx + 1) + '위</div>' +
-            '<div class="sub">' + me.score + '점 · ' + me.correct + '/' + TOTAL + ' 정답</div></div>'
-          : '') +
+        (idx >= 3 ? mineCard : '') +
+        '<div class="p-top3-label">TOP 3</div>' +
         '<ol class="p-rank-list">' + top + '</ol>' +
+        (idx < 3 && me ? mineCard : '') +
         '<p class="p-sub">참여해줘서 고마워요!</p>' +
       '</div>';
   }
