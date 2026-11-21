@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#140a2b" />
+<title>유하경 능력고사 · HOST</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="host">
+
+<div class="qprogress"><i id="progressBar"></i></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">유</span>
+    <div class="brand-txt">
+      <b>유하경 능력고사</b>
+      <small id="modeLabel">LOCAL</small>
+    </div>
+  </div>
+  <div class="tools">
+    <span class="chip status wait" id="statusPill">연결 중…</span>
+    <button class="btn tiny ghost" id="btnSound" title="효과음">🔊</button>
+    <button class="btn tiny ghost" id="btnSettings">설정 (S)</button>
+    <button class="btn tiny ghost" id="btnFull">전체화면</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage" id="stage"></section>
+
+  <aside class="side">
+    <div class="card join-card">
+      <div class="label">참가 코드</div>
+      <div class="code" id="joinCode" title="클릭하면 링크 복사">·····</div>
+      <a class="qr" id="qrBox" target="_blank" rel="noopener" title="클릭하면 QR을 크게 볼 수 있어요">
+        <img id="qrImg" alt="참가 QR 코드" />
+      </a>
+      <p class="qr-note" id="qrNote" hidden></p>
+      <div class="join-actions">
+        <button class="btn tiny" id="btnCopy">참가 링크 복사</button>
+        <a class="btn tiny ghost" id="linkOpen" target="_blank" rel="noopener">플레이어 화면 ↗</a>
+      </div>
+      <p class="join-note" id="joinNote"></p>
+    </div>
+
+    <div class="card rank-card">
+      <div class="rank-head">
+        <h3>참가자 <span id="pCount" class="count">0</span></h3>
+      </div>
+      <ul class="rank-list" id="rankList"></ul>
+    </div>
+  </aside>
+</main>
+
+<div class="modal" id="settings" hidden>
+  <div class="modal-card wide">
+    <h3>Firebase 연결 <span class="badge-soft">한 번만 설정하면 됩니다</span></h3>
+
+    <ol class="steps">
+      <li>console.firebase.google.com → <b>프로젝트 추가</b></li>
+      <li><b>빌드 → Realtime Database</b> → 데이터베이스 만들기 (<b>테스트 모드로 시작</b>)</li>
+      <li><b>Authentication → 시작하기 → Sign-in method → Anonymous</b> 사용 설정 <span class="mini">(필수)</span></li>
+      <li><b>프로젝트 설정(⚙) → 내 앱</b> 의 "SDK 설정 및 구성" 코드를 <b>통째로 복사</b> → 아래에 붙여넣기
+        <br /><span class="mini">databaseURL 줄이 없어도 괜찮아요 — 프로젝트 ID로 자동으로 찾습니다.</span></li>
+      <li>아래 <b>보안 규칙 복사</b> → <b>Realtime Database → 규칙</b> 탭에 붙여넣고 <b>게시</b></li>
+    </ol>
+
+    <textarea id="setPaste" class="paste" rows="5" spellcheck="false"
+      placeholder='여기에 붙여넣기 (예시)
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "xxx.firebaseapp.com",
+  databaseURL: "https://xxx-default-rtdb.firebaseio.com",
+  ...
+};'></textarea>
+    <div class="detect" id="setDetect">아직 인식된 값이 없습니다.</div>
+
+    <label class="field">세션 코드 (방송마다 바꾸면 새 판)
+      <input id="setCode" type="text" maxlength="8" placeholder="예: HAK01" autocomplete="off" />
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="setLocal">로컬 모드(테스트)</button>
+      <button class="btn ghost" id="setCancel">닫기</button>
+      <button class="btn primary" id="setSave">연결하기</button>
+    </div>
+
+    <div class="rules-box">
+      <div class="rules-head">
+        <b>보안 규칙</b>
+        <button class="btn tiny" id="setRulesCopy">복사</button>
+      </div>
+      <pre id="rulesText"></pre>
+      <p class="hint">
+        규칙을 꼭 넣어야 <b>점수 조작</b>과 <b>다른 사람 답 위조</b>가 막힙니다.
+        규칙 없이(테스트 모드)도 게임은 돌아가지만, 시청자가 점수를 바꿀 수 있어요.
+      </p>
+    </div>
+
+    <div class="rules-box">
+      <div class="rules-head">
+        <b>연결 진단</b>
+        <button class="btn tiny" id="btnDiag">지금 확인</button>
+      </div>
+      <ul class="diag-list" id="diagList"><li class="diag-wait">아직 확인하지 않았습니다</li></ul>
+      <p class="hint">연결이 안 될 때 눌러보세요. 어느 단계에서 막히는지 알려줍니다.</p>
+    </div>
+
+    <div class="rules-box">
+      <div class="rules-head"><b>방 관리</b></div>
+      <p class="hint">
+        <b>새 방 만들기</b> = 새 세션 코드로 이동. 지금 방은 <b>닫히고 참가자 전원이 나갑니다</b>.
+        새 링크를 채팅에 다시 올려야 해요.<br />
+        <b>같은 링크로 점수만 초기화</b>하려면 로비의 <b>새로 시작하기</b>를 누르세요 (참가자는 그대로).
+      </p>
+      <button class="btn" id="setNewRoom">새 방 만들기 (전원 퇴장)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/questions.js"></script>
+<script src="js/net.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>

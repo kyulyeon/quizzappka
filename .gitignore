@@ -1,0 +1,4 @@
+node_modules/
+.DS_Store
+# 앱과 무관한 이미지 (필요하면 이 줄을 지우고 git add 하세요)
+Gemini_Generated_Image_*.jpg
