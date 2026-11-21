@@ -22,11 +22,12 @@
   }
 
   /* 채점: 소문자 + 공백/문장부호 제거 후 비교, 2글자 이상이면 부분 일치도 인정 */
+  /* 비교용 정규화: 전각문자 통일 + 소문자 + 한글/영문/숫자만 남김
+     → 띄어쓰기, 마침표, 따옴표, ・, - , ! 등이 전부 무시됨 */
   function norm(s) {
-    return String(s == null ? '' : s)
-      .toLowerCase()
-      .replace(/[\s\u00a0]/g, '')
-      .replace(/[.,!?'"`~()[\]{}<>\/\\:;·…\-_+=@#$%^&*|]/g, '');
+    var t = String(s == null ? '' : s);
+    try { t = t.normalize('NFKC'); } catch (e) {}
+    return t.toLowerCase().replace(/[^0-9a-z\uac00-\ud7a3]/g, '');
   }
   function answerList(item) {
     var out = [item.title || ''];
@@ -34,7 +35,11 @@
     return out.filter(Boolean);
   }
 
-  /* 정답과 완전히 같거나, 입력이 정답으로 시작하면 정답 (예: '에잇' ← '에잇 아이유') */
+  /* 정답 판정 (아주 관대하게)
+     1) 띄어쓰기·문장부호 무시한 완전 일치
+     2) 입력 안에 정답이 들어있으면 인정        ('노래는 에잇', '에잇 아이유')
+     3) 정답의 60% 이상을 입력했으면 인정        ('이렇게좋아해본적')
+     → 애매하면 호스트가 O/X 로 최종 판정 */
   function matches(txt, answers) {
     var a = norm(txt);
     if (!a) return false;
@@ -42,7 +47,8 @@
       var b = norm(answers[i]);
       if (!b) continue;
       if (a === b) return true;
-      if (b.length >= 2 && a.indexOf(b) === 0) return true;
+      if (b.length >= 2 && a.indexOf(b) >= 0 && a.length <= b.length + 10) return true;
+      if (a.length >= 2 && b.indexOf(a) >= 0 && a.length >= Math.max(2, Math.ceil(b.length * 0.6))) return true;
     }
     return false;
   }
