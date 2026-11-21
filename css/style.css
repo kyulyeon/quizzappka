@@ -1093,8 +1093,11 @@ body.player {
    ========================================================================= */
 .poster {
   display: block;
-  width: min(300px, 52%);
-  margin: 0 auto 18px;
+  width: auto;
+  max-width: min(70%, 420px);
+  max-height: 38vh;
+  object-fit: contain;
+  margin: 0 auto 16px;
   border-radius: 16px;
   box-shadow: 0 24px 60px -26px #000;
   border: 1px solid var(--line);
@@ -1119,7 +1122,8 @@ body.player {
 }
 .reveal-cover-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
 
-.answer-row { display: flex; gap: 8px; align-items: center; }
+.answer-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.clip-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .ans-input {
   flex: 1 1 auto;
   min-width: 0;

@@ -321,6 +321,7 @@
       : '';
 
     return '<div class="lobby">' +
+        (QUIZ.poster ? '<img class="poster" src="' + esc(QUIZ.poster) + '" alt="포스터" />' : '') +
         '<div class="kicker">QUIZ SHOW</div>' +
         '<h1>유하경 능력고사</h1>' +
         '<p class="sub">전체 <b>' + TOTAL + '문제</b> · 문제당 <b>' + H.secs + '초</b> · 정답 공개 후 자동 채점</p>' +

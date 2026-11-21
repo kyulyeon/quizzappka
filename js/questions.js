@@ -14,6 +14,7 @@ window.QUIZ = {
   title: '유하경 능력고사',
   seconds: 15,          // 문제당 제한 시간(초)
   pointsPerCorrect: 1,  // 정답 1개당 점수 (속도 보너스 없음 — 순수 정답 개수)
+  poster: 'background.jpg', // 로비 상단에 보일 포스터 (없애려면 이 줄 삭제)
   questions: [
     /* ---------------- Part 1. 기본 프로필 & 신체 TMI ---------------- */
     {

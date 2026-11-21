@@ -194,7 +194,7 @@
           '<span class="chip">Q' + (state.qi + 1) + ' / ' + TOTAL + '</span>' +
           '<span class="chip ghost" id="pCd">' + (left === null ? (state.seconds || 15) : Math.ceil(left / 1000)) + '초</span>' +
         '</div>' +
-        '<h2 class="p-qtitle">' + esc(item.q) + '</h2>' +
+        '<h2 class="p-qtitle">' + esc(item.q || M.q || '이 곡의 제목은?') + '</h2>' +
         (item.hint ? '<p class="p-hint">' + esc(item.hint) + '</p>' : '') +
         '<input id="ansInput" class="p-input big" maxlength="60" placeholder="정답 입력" autocomplete="off" autocapitalize="off" />' +
         '<button class="btn primary big block" id="btnSubmit">제출</button>' +
@@ -301,11 +301,11 @@
     $('#pStage').innerHTML = '<div class="p-reveal">' +
         '<div class="p-qtop"><span class="chip">Q' + (state.qi + 1) + ' / ' + TOTAL + '</span>' +
           '<span class="chip ghost">' + esc(M.title || '음악 테스트') + '</span></div>' +
-        '<h2 class="p-qtitle small">' + esc(item.q) + '</h2>' +
+        '<h2 class="p-qtitle small">' + esc(item.q || M.q || '이 곡의 제목은?') + '</h2>' +
         (item.image ? '<img class="cover p-cover" src="' + esc(item.image) + '" alt="album cover" />' : '') +
         verdict +
         '<div class="p-answer"><span class="tag">정답</span><b>' + esc(correctTxt) + '</b>' +
-          (item.note ? '<span class="mini">' + esc(item.note) + '</span>' : '') + '</div>' +
+          (item.artist ? '<span class="mini">' + esc(item.emoji || '') + ' ' + esc(item.artist) + '</span>' : '') + '</div>' +
         (mine ? '<p class="p-picked">내 답: <b>' + esc(mine) + '</b></p>' : '') +
         '<div class="p-scoreline">내 점수 <b>' + score.score + '</b>점 (' + score.correct + '/' + TOTAL + ' 정답)</div>' +
         '<p class="p-sub">다음 문제를 기다리는 중…</p>' +

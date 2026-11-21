@@ -28,6 +28,13 @@
       .replace(/[\s\u00a0]/g, '')
       .replace(/[.,!?'"`~()[\]{}<>\/\\:;·…\-_+=@#$%^&*|]/g, '');
   }
+  function answerList(item) {
+    var out = [item.title || ''];
+    (item.answers || []).forEach(function (x) { out.push(x); });
+    return out.filter(Boolean);
+  }
+
+  /* 정답과 완전히 같거나, 입력이 정답으로 시작하면 정답 (예: '에잇' ← '에잇 아이유') */
   function matches(txt, answers) {
     var a = norm(txt);
     if (!a) return false;
@@ -35,7 +42,7 @@
       var b = norm(answers[i]);
       if (!b) continue;
       if (a === b) return true;
-      if (a.length >= 2 && b.length >= 2 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0)) return true;
+      if (b.length >= 2 && a.indexOf(b) === 0) return true;
     }
     return false;
   }
@@ -52,7 +59,7 @@
     endsAt: 0, qSecs: 0, secs: 0, qStart: 0, skew: 0, lastTs: 0, metaTs: 0,
     players: {}, banned: {}, answers: {}, results: {}, state: {}, final: null,
     sound: true, timerId: null, stageSig: '', sideSig: '',
-    pollT: null, revealing: false, resume: null, lastAnswer: '', lastQi: -1, clipT: null
+    pollT: null, revealing: false, resume: null, lastAnswer: '', lastQi: -1, clipT: null, fullPlaying: false
   };
 
   /* ------------------------------ 소리 ------------------------------ */
@@ -79,11 +86,14 @@
 
   function stopClip() {
     if (H.clipT) { clearTimeout(H.clipT); H.clipT = null; }
+    H.fullPlaying = false;
     var a = clipEl();
     if (a) { try { a.pause(); } catch (e) {} }
+    var b = document.querySelector('#btnFullSong');
+    if (b) b.textContent = '🎧 전체곡 듣기';
   }
 
-  function playClip(item) {
+  function playClip(item, mode) {
     var a = clipEl();
     if (!a || !item || !item.audio) {
       toast('이 문제에는 audio 파일이 없습니다');
@@ -93,7 +103,11 @@
       a.setAttribute('data-src', item.audio);
       a.src = item.audio;
     }
-    try { a.currentTime = Number(item.start) || 0; } catch (e) {}
+    var at = (mode === 'highlight')
+      ? (Number(item.highlightStart) || 0)
+      : (Number(item.introStart) || 0);
+    try { a.currentTime = at; } catch (e) {}
+    H.fullPlaying = false;
     var len = Math.max(0.3, Number(M.clipSeconds) || 1);
 
     var pr = a.play();
@@ -108,6 +122,34 @@
         toast('브라우저가 자동재생을 막았어요 — ▶ 버튼을 누르세요');
       });
     }
+  }
+
+  function toggleFullSong(item) {
+    var a = clipEl();
+    if (!a || !item || !item.audio) { toast('음원이 없습니다'); return; }
+
+    if (H.fullPlaying) {
+      stopClip();
+      H.fullPlaying = false;
+      var b = document.querySelector('#btnFullSong');
+      if (b) b.textContent = '🎧 전체곡 듣기';
+      return;
+    }
+
+    if (a.getAttribute('data-src') !== item.audio) {
+      a.setAttribute('data-src', item.audio);
+      a.src = item.audio;
+    }
+    if (H.clipT) { clearTimeout(H.clipT); H.clipT = null; }
+    try { a.currentTime = 0; } catch (e) {}
+    H.fullPlaying = true;
+
+    var pr = a.play();
+    if (pr && pr.then) {
+      pr.catch(function () { toast('재생이 막혔어요 — 다시 눌러주세요'); });
+    }
+    var btn = document.querySelector('#btnFullSong');
+    if (btn) btn.textContent = '⏸ 전체곡 정지';
   }
 
   /* --------------------------- 상태 계산 --------------------------- */
@@ -355,13 +397,12 @@
     var correctBox = revealed
       ? '<div class="t-correct">' +
           '<span class="tag">정답</span>' +
-          '<b>' + esc(answerNow || '—') + '</b>' +
-          (item.note ? '<span class="note">' + esc(item.note) + '</span>' : '') +
+          '<b>' + esc(item.title || '—') + '</b>' +
+          '<span class="alt">' + esc(item.emoji || '') + ' ' + esc(item.artist || '') + '</span>' +
+          (item.album ? '<span class="note">' + esc(item.album) + '</span>' : '') +
         '</div>' +
         '<div class="answer-row">' +
-          '<input id="hostAnswer" class="ans-input" placeholder="정답을 입력하면 바로 채점됩니다"' +
-            ' value="' + esc(answerNow) + '" />' +
-          '<button class="btn primary" id="btnGrade">채점하기</button>' +
+          '<button class="btn primary" id="btnFullSong">🎧 전체곡 듣기</button>' +
         '</div>'
       : '';
 
@@ -370,7 +411,10 @@
       : '<div class="t-waiting">' +
           '<div class="live-count" id="liveCount">' + answeredCount(i) + ' / ' + Object.keys(H.players).length + '명 제출</div>' +
           '<p class="t-tip">' + esc(item.hint || '1초만 듣고 제목을 입력하세요') + '</p>' +
-          '<button class="btn" id="btnClip">▶ ' + (Number(M.clipSeconds) || 1) + '초 듣기</button>' +
+          '<div class="clip-btns">' +
+            '<button class="btn" id="btnClip" data-mode="intro">▶ 인트로 ' + (Number(M.clipSeconds) || 1) + '초</button>' +
+            '<button class="btn ghost" id="btnClipHi" data-mode="highlight">▶ 하이라이트 ' + (Number(M.clipSeconds) || 1) + '초</button>' +
+          '</div>' +
         '</div>';
 
     var bottom = revealed
@@ -390,7 +434,7 @@
           '<span class="chip">🎵 ' + esc(M.title || '음악 테스트') + '</span>' +
           '<span class="chip ghost">Q' + (i + 1) + ' / ' + TOTAL + '</span>' +
         '</div>' +
-        '<h2 class="q-title">' + esc(item.q) + '</h2>' +
+        '<h2 class="q-title">' + esc(item.q || M.q || '이 곡의 제목은?') + '</h2>' +
         (revealed
           ? '<div class="reveal-cover">' + cover +
               '<div class="reveal-cover-side">' + correctBox + body + '</div>' +
@@ -491,7 +535,7 @@
     renderAll();
     startTimer();
     startAnswerPoll();
-    playClip(M.questions[i]);
+    playClip(M.questions[i], 'intro');
 
     Net.setState({
       phase: 'question', qi: i, startedAt: Net.sv(), ts: Net.sv(),
@@ -511,9 +555,9 @@
       .catch(function () { openQuestion(0); });
   }
 
-  function gradeAll(qi, text) {
+  function gradeAll(qi) {
     var item = M.questions[qi];
-    var list = (item.answers && item.answers.length) ? item.answers : [text];
+    var list = answerList(item);
     var src = H.answers[qi] || {};
     var map = {};
 
@@ -525,7 +569,7 @@
     });
 
     H.results[qi] = map;
-    H.lastAnswer = text;
+    H.lastAnswer = item.title;
     H.lastQi = qi;
     H.stageSig = '';
     H.sideSig = '';
@@ -535,7 +579,7 @@
     Net.setScores(scoresFrom(H.results)).catch(function () {});
     Net.setState({
       phase: 'reveal', qi: qi, startedAt: H.qStart || 0, ts: Net.sv(),
-      seconds: H.qSecs, correct: 0, total: TOTAL, answer: text
+      seconds: H.qSecs, correct: 0, total: TOTAL, answer: item.title
     }).catch(function () {});
   }
 
@@ -554,18 +598,7 @@
       H.correct = 0;
       H.revealing = false;
 
-      var preset = (item.answers && item.answers[0]) || '';
-      if (preset) {
-        gradeAll(qi, preset);
-      } else {
-        H.stageSig = '';
-        H.sideSig = '';
-        renderAll();
-        Net.setState({
-          phase: 'reveal', qi: qi, startedAt: H.qStart || 0, ts: Net.sv(),
-          seconds: H.qSecs, correct: 0, total: TOTAL, answer: ''
-        }).catch(function () {});
-      }
+      gradeAll(qi);
 
       tone(680, 0.14, 'triangle');
       setTimeout(function () { tone(940, 0.2, 'triangle'); }, 120);
@@ -761,13 +794,9 @@
       if (t.closest('#btnNext')) return next();
       if (t.closest('#btnRestart')) return restart();
       if (t.closest('#btnNewRoom')) return newRoom();
-      if (t.closest('#btnClip')) return playClip(M.questions[H.qi]);
-      if (t.closest('#btnGrade')) {
-        var el = $('#hostAnswer');
-        var txt = (el && el.value || '').trim();
-        if (!txt) { toast('정답을 입력하세요'); return; }
-        return gradeAll(H.qi, txt);
-      }
+      if (t.closest('#btnClip')) return playClip(M.questions[H.qi], 'intro');
+      if (t.closest('#btnClipHi')) return playClip(M.questions[H.qi], 'highlight');
+      if (t.closest('#btnFullSong')) return toggleFullSong(M.questions[H.qi]);
       if (t.closest('#btnCsv')) return exportCsv();
       if (t.closest('#btnFull')) return toggleFull();
       if (t.closest('#btnSettings')) return openSettings();
@@ -791,14 +820,6 @@
       if (no) return manual(no.getAttribute('data-no'), false);
 
       if (H.phase === 'reveal' && t.closest('.tanswer')) return next();
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && e.target && e.target.id === 'hostAnswer') {
-        e.preventDefault();
-        var txt = (e.target.value || '').trim();
-        if (txt) gradeAll(H.qi, txt);
-      }
     });
 
     var secInput = $('#setSeconds');
@@ -846,6 +867,9 @@
     Net.setRole('host');
     Net.onChange(function (snap) { ingest(snap); renderSide(); renderStage(); });
     Net.onStatus(renderStatus);
+
+    var au = document.getElementById('clip');
+    if (au) au.addEventListener('ended', function () { stopClip(); });
 
     paintChrome();
     bindEvents();
