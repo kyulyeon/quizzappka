@@ -65,7 +65,8 @@
     endsAt: 0, qSecs: 0, secs: 0, qStart: 0, skew: 0, lastTs: 0, metaTs: 0,
     players: {}, banned: {}, answers: {}, results: {}, state: {}, final: null,
     sound: true, timerId: null, stageSig: '', sideSig: '',
-    pollT: null, revealing: false, resume: null, lastAnswer: '', lastQi: -1, clipT: null, fullPlaying: false
+    pollT: null, revealing: false, resume: null, lastAnswer: '', lastQi: -1, clipT: null, fullPlaying: false,
+    volume: 70
   };
 
   /* ------------------------------ 소리 ------------------------------ */
@@ -156,6 +157,34 @@
     }
     var btn = document.querySelector('#btnFullSong');
     if (btn) btn.textContent = '⏸ 전체곡 정지';
+  }
+
+  /* ----------------------------- 볼륨 ----------------------------- */
+  function volIcon(v) { return v === 0 ? '🔇' : (v < 40 ? '🔉' : '🔊'); }
+
+  function volHtml() {
+    var v = H.volume;
+    return '<div class="vol">' +
+        '<span class="vol-ic">' + volIcon(v) + '</span>' +
+        '<input type="range" id="volSlider" min="0" max="100" step="1" value="' + v + '" />' +
+        '<span class="vol-val">' + v + '%</span>' +
+      '</div>';
+  }
+
+  function applyVolume() {
+    var a = clipEl();
+    if (a) { try { a.volume = Math.max(0, Math.min(1, H.volume / 100)); } catch (e) {} }
+  }
+
+  function setVolume(v) {
+    v = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+    H.volume = v;
+    try { localStorage.setItem('hg.music.volume', String(v)); } catch (e) {}
+    applyVolume();
+    var val = document.querySelector('.vol-val');
+    if (val) val.textContent = v + '%';
+    var ic = document.querySelector('.vol-ic');
+    if (ic) ic.textContent = volIcon(v);
   }
 
   /* --------------------------- 상태 계산 --------------------------- */
@@ -409,6 +438,7 @@
         '</div>' +
         '<div class="answer-row">' +
           '<button class="btn primary" id="btnFullSong">🎧 전체곡 듣기</button>' +
+          volHtml() +
         '</div>'
       : '';
 
@@ -417,6 +447,7 @@
       : '<div class="t-waiting">' +
           '<div class="live-count" id="liveCount">' + answeredCount(i) + ' / ' + Object.keys(H.players).length + '명 제출</div>' +
           '<p class="t-tip">' + esc(item.hint || '1초만 듣고 제목을 입력하세요') + '</p>' +
+          volHtml() +
           '<div class="clip-btns">' +
             '<button class="btn" id="btnClip" data-mode="intro">▶ 인트로 ' + (Number(M.clipSeconds) || 1) + '초</button>' +
             '<button class="btn ghost" id="btnClipHi" data-mode="highlight">▶ 하이라이트 ' + (Number(M.clipSeconds) || 1) + '초</button>' +
@@ -828,6 +859,10 @@
       if (H.phase === 'reveal' && t.closest('.tanswer')) return next();
     });
 
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'volSlider') setVolume(e.target.value);
+    });
+
     var secInput = $('#setSeconds');
     if (secInput) secInput.addEventListener('input', function () { setSeconds(this.value); });
 
@@ -866,6 +901,11 @@
       try { localStorage.setItem('hg.code.music', code); } catch (e) {}
     }
 
+    try {
+      var sv = parseInt(localStorage.getItem('hg.music.volume'), 10);
+      if (sv >= 0 && sv <= 100) H.volume = sv;
+    } catch (e) {}
+
     H.code = cfg.code;
     H.secs = storedSecs();
     H.qSecs = H.secs;
@@ -876,6 +916,7 @@
 
     var au = document.getElementById('clip');
     if (au) au.addEventListener('ended', function () { stopClip(); });
+    applyVolume();
 
     paintChrome();
     bindEvents();
