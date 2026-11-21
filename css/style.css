@@ -1303,3 +1303,33 @@ body.player {
   .ed-opts { grid-template-columns: 1fr; }
   .editor-foot .hint { display: none; }
 }
+
+/* 편집기: 보기 개수 조절 */
+.ed-top { display: flex; align-items: center; gap: 8px; }
+.ed-count {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+}
+.ed-cnt {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--txt);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+.ed-cnt:hover { background: #7c5cff; border-color: transparent; }
+.ed-cnt-num { font-size: 11.5px; font-weight: 800; color: var(--muted); min-width: 10px; text-align: center; }
+.ed-tip { font-size: 10.5px; color: var(--muted); margin-top: 2px; }

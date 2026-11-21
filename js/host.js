@@ -801,8 +801,16 @@
             '<input type="checkbox" data-pick' + (H.draftPick[item.id] ? ' checked' : '') + ' />' +
           '</label>' +
           '<div class="ed-main">' +
-            '<input class="ed-q" value="' + esc(item.q) + '" placeholder="질문을 입력하세요" />' +
-            '<div class="ed-opts">' + opts + '</div>' +
+            '<div class="ed-top">' +
+              '<input class="ed-q" value="' + esc(item.q) + '" placeholder="질문을 입력하세요" />' +
+              '<div class="ed-count" title="보기 개수 — 2개로 줄이면 O/X 문제">' +
+                '<button class="ed-cnt" data-minus="' + item.id + '" title="보기 줄이기">−</button>' +
+                '<span class="ed-cnt-num">' + item.options.length + '</span>' +
+                '<button class="ed-cnt" data-plus="' + item.id + '" title="보기 늘리기">+</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="ed-opts n' + item.options.length + '">' + opts + '</div>' +
+            '<div class="ed-tip">' + (item.options.length === 2 ? 'O/X (2지선다)' : item.options.length + '지선다') + '</div>' +
           '</div>' +
           '<button class="ed-del" data-del="' + item.id + '" title="삭제">🗑</button>' +
         '</div>';
@@ -839,9 +847,32 @@
     el.textContent = '전체 ' + H.draft.length + ' · 출제 ' + n;
   }
 
-  function addQuestion() {
+  function changeOptions(id, delta) {
     collectDraft();
-    var item = normalizeQ({ id: newId(), q: '', options: ['', '', '', ''], answer: 1 });
+    var item = null;
+    for (var i = 0; i < H.draft.length; i++) { if (H.draft[i].id === id) item = H.draft[i]; }
+    if (!item) return;
+
+    var opts = item.options.slice();
+    if (delta > 0) {
+      if (opts.length >= 6) { toast('보기는 최대 6개까지'); return; }
+      opts.push('');
+    } else {
+      if (opts.length <= 2) { toast('보기는 최소 2개 (O/X)'); return; }
+      opts.pop();
+      if (item.answer > opts.length) item.answer = opts.length;
+    }
+    item.options = opts;
+    renderEditor();
+  }
+
+  function addQuestion(ox) {
+    collectDraft();
+    var item = normalizeQ({
+      id: newId(), q: '',
+      options: ox ? ['O', 'X'] : ['', '', '', ''],
+      answer: 1
+    });
     H.draft.push(item);
     H.draftPick[item.id] = true;
     renderEditor();
@@ -979,7 +1010,12 @@
       if (t.closest('#btnStart')) return startQuiz();
       if (t.closest('#btnNewRoom')) return newRoom();
       if (t.closest('#btnEdit')) return openEditor();
-      if (t.closest('#edAdd')) return addQuestion();
+      if (t.closest('#edAdd')) return addQuestion(false);
+      if (t.closest('#edAddOX')) return addQuestion(true);
+      var minus = t.closest('[data-minus]');
+      if (minus) return changeOptions(minus.getAttribute('data-minus'), -1);
+      var plus = t.closest('[data-plus]');
+      if (plus) return changeOptions(plus.getAttribute('data-plus'), 1);
       if (t.closest('#edSave')) return saveEditor();
       if (t.closest('#edClose')) { $('#editor').hidden = true; return; }
       if (t.closest('#edAll')) return setAllPicked(true);
