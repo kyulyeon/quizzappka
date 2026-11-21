@@ -981,3 +981,166 @@ body.player {
 @media (max-width: 1080px) {
   .qr { width: 120px; height: 120px; }
 }
+
+/* =========================================================================
+   주관식(타이핑) 퀴즈: 음악 테스트
+   ========================================================================= */
+.t-correct {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(61, 220, 132, 0.12);
+  border: 1px solid rgba(61, 220, 132, 0.4);
+  margin-bottom: 4px;
+}
+.t-correct b { font-size: clamp(17px, 2vw, 26px); color: var(--ok); }
+.t-correct .alt { color: var(--muted); font-size: 12.5px; }
+.t-correct .note { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+.t-waiting {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 140px;
+  border-radius: var(--r);
+  border: 1px dashed var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
+  padding: 24px;
+}
+.t-waiting .live-count { color: var(--txt); font-size: 15px; font-weight: 800; }
+.t-tip { color: var(--muted); font-size: 13px; margin: 0; }
+
+.tanswer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tanswer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+.tanswer.ok { background: rgba(61, 220, 132, 0.12); border-color: rgba(61, 220, 132, 0.45); }
+.tanswer.no { background: rgba(255, 84, 112, 0.1); border-color: rgba(255, 84, 112, 0.35); }
+.tanswer .who {
+  flex: 0 0 auto;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.tanswer .what {
+  flex: 1 1 auto;
+  font-weight: 700;
+  word-break: break-all;
+}
+.tanswer .mark { font-size: 16px; font-weight: 900; }
+.tanswer.ok .mark { color: var(--ok); }
+.tanswer.no .mark { color: var(--no); }
+.tanswer .ta-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 2px 7px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.tanswer .ta-btn:hover { background: var(--ok); color: #06210f; border-color: transparent; }
+.tanswer .ta-btn:last-child:hover { background: var(--no); color: #fff; }
+
+/* 참가자: 주관식 입력 */
+.p-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin: -6px 0 12px;
+  text-align: left;
+}
+.p-input.big {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 16px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.p-input.big:focus { outline: 2px solid #7c5cff; }
+
+/* =========================================================================
+   음악 테스트: 포스터 / 앨범 커버 / 정답 채점 입력
+   ========================================================================= */
+.poster {
+  display: block;
+  width: min(300px, 52%);
+  margin: 0 auto 18px;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -26px #000;
+  border: 1px solid var(--line);
+}
+
+.reveal-cover {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 18px;
+  min-height: 0;
+  align-items: start;
+}
+.cover {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px -24px #000;
+  background: rgba(0, 0, 0, 0.3);
+}
+.reveal-cover-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+
+.answer-row { display: flex; gap: 8px; align-items: center; }
+.ans-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.32);
+  color: var(--txt);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+}
+.ans-input:focus { outline: 2px solid #7c5cff; outline-offset: 1px; }
+
+@media (max-width: 900px) {
+  .reveal-cover { grid-template-columns: 1fr; }
+  .cover { width: min(230px, 60%); margin: 0 auto; }
+  .poster { width: min(200px, 60%); }
+}
+.p-cover {
+  width: min(220px, 62%);
+  margin: 0 auto 14px;
+  display: block;
+}

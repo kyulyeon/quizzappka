@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#140a2b" />
+<title>음악 테스트 · HOST</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="host">
+
+<div class="qprogress"><i id="progressBar"></i></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">♪</span>
+    <div class="brand-txt">
+      <b>음악 테스트</b>
+      <small id="modeLabel">LOCAL</small>
+    </div>
+  </div>
+  <div class="tools">
+    <span class="chip status wait" id="statusPill">연결 중…</span>
+    <a class="btn tiny ghost" href="index.html">퀴즈로</a>
+    <button class="btn tiny ghost" id="btnSound" title="효과음">🔊</button>
+    <button class="btn tiny ghost" id="btnSettings">설정 (S)</button>
+    <button class="btn tiny ghost" id="btnFull">전체화면</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage" id="stage"></section>
+
+  <aside class="side">
+    <div class="card join-card">
+      <div class="label">참가 코드</div>
+      <div class="code" id="joinCode" title="클릭하면 링크 복사">·····</div>
+      <a class="qr" id="qrBox" target="_blank" rel="noopener" title="클릭하면 QR을 크게 볼 수 있어요">
+        <img id="qrImg" alt="참가 QR 코드" />
+      </a>
+      <p class="qr-note" id="qrNote" hidden></p>
+      <div class="join-actions">
+        <button class="btn tiny" id="btnCopy">참가 링크 복사</button>
+        <a class="btn tiny ghost" id="linkOpen" target="_blank" rel="noopener">플레이어 화면 ↗</a>
+      </div>
+      <p class="join-note" id="joinNote"></p>
+    </div>
+
+    <div class="card rank-card">
+      <div class="rank-head">
+        <h3>참가자 <span id="pCount" class="count">0</span></h3>
+      </div>
+      <ul class="rank-list" id="rankList"></ul>
+    </div>
+  </aside>
+</main>
+
+<div class="modal" id="settings" hidden>
+  <div class="modal-card">
+    <h3>연결</h3>
+
+    <textarea id="setPaste" class="paste" rows="5" spellcheck="false"
+      placeholder='databaseURL: "https://xxxx-default-rtdb.asia-southeast1.firebasedatabase.app",
+apiKey: "AIzaSy..."'></textarea>
+
+    <label class="field">문제당 시간
+      <div class="secs-row">
+        <input id="setSeconds" type="number" min="5" max="120" step="1" />
+        <span class="secs-unit">초</span>
+        <button class="btn tiny ghost" type="button" data-secs="10">10초</button>
+        <button class="btn tiny ghost" type="button" data-secs="15">15초</button>
+        <button class="btn tiny ghost" type="button" data-secs="20">20초</button>
+      </div>
+    </label>
+
+    <label class="field">세션 코드
+      <input id="setCode" type="text" maxlength="8" placeholder="예: MUSIC" autocomplete="off" />
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="setCancel">닫기</button>
+      <button class="btn primary" id="setSave">연결하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<audio id="clip" preload="auto"></audio>
+
+<script src="js/music-questions.js"></script>
+<script src="js/net.js"></script>
+<script src="js/music-host.js"></script>
+</body>
+</html>

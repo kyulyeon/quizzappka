@@ -609,6 +609,7 @@
     toast('방을 닫고 새 방을 준비하는 중…');
     Net.closeRoom(old).then(function () {
       Net.saveCfg({ code: nc });
+      try { localStorage.setItem('hg.code.quiz', nc); } catch (e) {}
       try { sessionStorage.setItem('hg.newroom', nc); } catch (e) {}
       location.reload();
     });
@@ -749,6 +750,7 @@
 
     if (p.db) {
       Net.saveCfg({ db: p.db, code: code });
+      try { localStorage.setItem('hg.code.quiz', code); } catch (e) {}
       location.reload();
       return;
     }
@@ -760,6 +762,7 @@
         return;
       }
       Net.saveCfg({ db: db, code: code });
+      try { localStorage.setItem('hg.code.quiz', code); } catch (e) {}
       location.reload();
     });
   }
@@ -837,7 +840,14 @@
     }
 
     var cfg = Net.config();
-    if (!cfg.code) cfg = Net.saveCfg({ code: Net.randomCode() });
+    var savedCode = null, otherCode = null;
+    try { savedCode = localStorage.getItem('hg.code.quiz'); otherCode = localStorage.getItem('hg.code.music'); } catch (e) {}
+    if (savedCode) cfg = Net.saveCfg({ code: savedCode });
+    else {
+      var code = (!cfg.code || otherCode === cfg.code) ? Net.randomCode() : cfg.code;
+      cfg = Net.saveCfg({ code: code });
+      try { localStorage.setItem('hg.code.quiz', code); } catch (e) {}
+    }
     H.code = cfg.code;
 
     Net.setRole('host');

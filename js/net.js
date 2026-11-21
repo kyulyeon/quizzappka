@@ -771,6 +771,15 @@ window.Net = (function () {
     return put('players/' + me, node).catch(function () {});
   }
 
+  /* 주관식(타이핑) 답안: 기존 answers 구조를 그대로 쓰되 txt 필드에 담는다.
+     (규칙의 opt/at 요구사항을 만족시키기 위해 opt:0 을 함께 저장) */
+  function answerText(qi, txt, name) {
+    var me = uid();
+    var node = { opt: 0, at: sv(), n: name, txt: String(txt == null ? '' : txt).slice(0, 80) };
+    if (!isCloud()) { localWrite('answers/q' + qi + '/' + me, node); return Promise.resolve(true); }
+    return putAnswers('q' + qi + '/' + me, node);
+  }
+
   function answer(qi, opt, name) {
     var me = uid();
     var node = { opt: opt, at: sv(), n: name };
@@ -818,6 +827,7 @@ window.Net = (function () {
     join: join,
     heartbeat: heartbeat,
     answer: answer,
+    answerText: answerText,
     isBanned: isBanned
   };
 })();
