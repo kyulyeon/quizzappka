@@ -149,7 +149,7 @@
     var st = $('#pStage');
     st.innerHTML = '<div class="p-join">' +
         '<h1>유하경 능력고사</h1>' +
-        '<p class="p-sub">세션 <b>' + esc(CODE) + '</b> · ' + TOTAL + '문제 · 문제당 ' + QUIZ.seconds + '초</p>' +
+        '<p class="p-sub">세션 <b>' + esc(CODE) + '</b> · 전체 ' + TOTAL + '문제</p>' +
         '<input id="nameInput" class="p-input" maxlength="12" placeholder="닉네임 입력" autocomplete="off" />' +
         '<button class="btn primary big block" id="btnJoin">참가하기</button>' +
         '<p class="hint">닉네임은 리더보드에 표시됩니다.</p>' +

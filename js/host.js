@@ -11,8 +11,13 @@
   var QUIZ = window.QUIZ;
   var Net = window.Net;
   var TOTAL = QUIZ.questions.length;
-  var SECS = QUIZ.seconds || 15;
-  var LIMIT = SECS * 1000;
+  var DEFAULT_SECS = QUIZ.seconds || 15;
+
+  function storedSecs() {
+    var v = parseInt(localStorage.getItem('hg.seconds'), 10);
+    return (v >= 5 && v <= 120) ? v : DEFAULT_SECS;
+  }
+  function limitMs() { return H.qSecs * 1000; }
   var POINTS = QUIZ.pointsPerCorrect || 1;   // 정답 1개당 점수 (속도 무관)
   var SHAPES = ['▲', '◆', '●', '■', '★', '✚'];
 
@@ -29,6 +34,7 @@
     phase: 'lobby', qi: -1, correct: null,
     endsAt: 0, serverEndsAt: 0, qStart: 0, skew: 0,
     players: {}, banned: {}, answers: {}, results: {}, state: {}, scoresDb: {}, final: null,
+    secs: 0, qSecs: 0,
     sound: true, timerId: null,
     stageSig: '', sideSig: '',
     resume: null, hall: null, lastTs: 0, lastMetaTs: 0,
@@ -134,7 +140,7 @@
 
     if (typeof st.startedAt === 'number' && st.startedAt > 0 && st.startedAt !== H.qStart) {
       H.qStart = st.startedAt;
-      var secs = st.seconds || SECS;
+      var secs = st.seconds || H.qSecs || DEFAULT_SECS;
       H.serverEndsAt = st.startedAt + secs * 1000;
       if (H.phase === 'question') H.endsAt = H.serverEndsAt - H.skew;
     }
@@ -165,7 +171,7 @@
     function loop() {
       if (H.phase !== 'question') return;
       var left = Math.max(0, H.endsAt - Date.now());
-      var ratio = Math.max(0, Math.min(1, left / LIMIT));
+      var ratio = Math.max(0, Math.min(1, left / limitMs()));
       var bar = $('#tbar');
       var wrap = $('.timer-bar');
       var sec = $('#tsec');
@@ -317,7 +323,7 @@
     return '<div class="lobby">' +
         '<div class="kicker">QUIZ SHOW</div>' +
         '<h1>유하경 능력고사</h1>' +
-        '<p class="sub">전체 <b>' + TOTAL + '문제</b> · 문제당 <b>' + SECS + '초</b> · 정답 공개 후 자동 채점</p>' +
+        '<p class="sub">전체 <b>' + TOTAL + '문제</b> · 문제당 <b>' + H.secs + '초</b> · 정답 공개 후 자동 채점</p>' +
         '<div class="lobby-badges">' +
           '<span class="pill">참가 코드 <b>' + esc(H.code) + '</b></span>' +
           '<span class="pill">참가자 <b>' + Object.keys(H.players).length + '</b>명</span>' +
@@ -366,7 +372,7 @@
       : '<div class="timer-row">' +
           '<div class="live-count" id="liveCount">' + answeredCount(i) + ' / ' + Object.keys(H.players).length + '명 응답</div>' +
           '<div class="timer-bar"><i id="tbar" style="width:100%"></i></div>' +
-          '<div class="timer-sec"><b id="tsec">' + SECS + '</b><small>초</small></div>' +
+          '<div class="timer-sec"><b id="tsec">' + H.qSecs + '</b><small>초</small></div>' +
         '</div>';
 
     return '<div class="q-wrap' + (revealed ? ' is-reveal' : '') + '">' +
@@ -475,7 +481,8 @@
     H.revealing = false;
     H.qStart = 0;
     H.serverEndsAt = 0;
-    H.endsAt = Date.now() + LIMIT;
+    H.qSecs = H.secs;
+    H.endsAt = Date.now() + limitMs();
     H.answers[i] = {};
     H.stageSig = '';
     H.sideSig = '';
@@ -485,7 +492,7 @@
 
     Net.setState({
       phase: 'question', qi: i, startedAt: Net.sv(), ts: Net.sv(),
-      seconds: SECS, correct: null, total: TOTAL
+      seconds: H.qSecs, correct: null, total: TOTAL
     }).catch(function (e) { toast('문제 시작 저장 실패: ' + e.message); });
   }
 
@@ -497,7 +504,7 @@
     H.resume = null;
     H.stageSig = '';
     H.sideSig = '';
-    Net.resetRound().then(function () { openQuestion(0); })
+    Net.resetRound(H.secs).then(function () { openQuestion(0); })
       .catch(function (e) { toast('초기화 실패: ' + e.message); openQuestion(0); });
   }
 
@@ -534,7 +541,7 @@
         .then(function () {
           return Net.setState({
             phase: 'reveal', qi: qi, startedAt: H.qStart || 0, ts: Net.sv(),
-            seconds: SECS, correct: correct, total: TOTAL
+            seconds: H.qSecs, correct: correct, total: TOTAL
           });
         })
         .catch(function (e) { toast('채점 저장 실패: ' + e.message); })
@@ -561,7 +568,7 @@
       rank: rows.map(function (p) { return { uid: p.id, name: p.name, score: p.score, correct: p.correct }; })
     }).catch(function () {});
 
-    Net.setState({ phase: 'end', qi: H.qi, startedAt: H.qStart || 0, ts: Net.sv(), seconds: SECS, correct: H.correct, total: TOTAL })
+    Net.setState({ phase: 'end', qi: H.qi, startedAt: H.qStart || 0, ts: Net.sv(), seconds: H.qSecs, correct: H.correct, total: TOTAL })
       .catch(function () {});
 
     Net.writeAllTime(rows.map(function (p) {
@@ -581,7 +588,7 @@
     H.resume = null;
     H.stageSig = '';
     H.sideSig = '';
-    Net.resetRound().catch(function () {}).then(renderAll);
+    Net.resetRound(H.secs).catch(function () {}).then(renderAll);
   }
 
   /* 새 방 = 새 세션 코드. 기존 방은 닫혀서 참가자 전원 퇴장 → 새 링크로 다시 입장 */
@@ -711,7 +718,22 @@
       ? ['databaseURL: "' + cfg.db + '",', 'apiKey: "' + cfg.key + '"'].join(String.fromCharCode(10))
       : '';
     $('#setCode').value = cfg.code || '';
+    $('#setSeconds').value = H.secs;
     $('#settings').hidden = false;
+  }
+
+  function setSeconds(v) {
+    v = parseInt(v, 10);
+    if (!(v >= 5 && v <= 120)) return;
+    H.secs = v;
+    try { localStorage.setItem('hg.seconds', String(v)); } catch (e) {}
+    var inp = $('#setSeconds');
+    if (inp && String(inp.value) !== String(v)) inp.value = v;
+    if (H.phase !== 'question') {
+      H.stageSig = '';
+      renderStage();
+    }
+    toast(v + '초로 설정 — 다음 문제부터 적용됩니다');
   }
 
   function saveSettings() {
@@ -764,6 +786,8 @@
       if (t.closest('#btnSettings')) return openSettings();
       if (t.closest('#btnCopy') || t.closest('#joinCode')) return copy(H.link, '참가 링크를 복사했어요!');
       if (t.closest('#setSave')) return saveSettings();
+      var secBtn = t.closest('[data-secs]');
+      if (secBtn) return setSeconds(secBtn.getAttribute('data-secs'));
       if (t.closest('#setCancel')) { $('#settings').hidden = true; return; }
       if (t.closest('#btnSound')) {
         H.sound = !H.sound;
@@ -794,6 +818,9 @@
       else if (e.key === 's' || e.key === 'S') openSettings();
     });
 
+    var secInput = $('#setSeconds');
+    if (secInput) secInput.addEventListener('input', function () { setSeconds(this.value); });
+
     window.addEventListener('beforeunload', function () { stopAnswerPoll(); Net.disconnect(); });
   }
 
@@ -814,6 +841,8 @@
     H.code = cfg.code;
 
     Net.setRole('host');
+    H.secs = storedSecs();
+    H.qSecs = H.secs;
     Net.onChange(function (snap) { ingest(snap); renderSide(); renderStage(); });
     Net.onStatus(renderStatus);
 
@@ -846,7 +875,7 @@
     Net.connect()
       .then(function () { return Net.claimHost(); })
       .then(function () {
-        return Net.setMeta({ title: QUIZ.title, seconds: SECS, total: TOTAL });
+        return Net.setMeta({ title: QUIZ.title, seconds: H.secs, total: TOTAL });
       })
       .then(function () {
         H.ready = true;

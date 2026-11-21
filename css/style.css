@@ -577,6 +577,10 @@ body.host {
   font-size: 14px;
 }
 .field input:focus, .field select:focus { outline: 2px solid #7c5cff; outline-offset: 1px; }
+.secs-row { display: flex; align-items: center; gap: 7px; margin-top: 6px; flex-wrap: wrap; }
+.secs-row input { width: 84px; margin: 0; text-align: center; }
+.secs-unit { color: var(--muted); font-size: 13px; font-weight: 700; margin-right: 2px; }
+
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 6px; }
 .toast {
   position: fixed;

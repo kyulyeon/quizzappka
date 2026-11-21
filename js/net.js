@@ -690,13 +690,14 @@ window.Net = (function () {
     return put('final', final);
   }
 
-  function resetRound() {
+  function resetRound(seconds) {
+    var secs = parseInt(seconds, 10) > 0 ? parseInt(seconds, 10) : 15;
     if (!isCloud()) {
       ['state', 'scores', 'final', 'results', 'answers'].forEach(function (p) { localWrite(p, null); });
       return Promise.resolve(true);
     }
     return Promise.all([
-      put('state', { phase: 'lobby', qi: -1, startedAt: 0, seconds: cfg.seconds || 15, correct: null, ts: sv() }),
+      put('state', { phase: 'lobby', qi: -1, startedAt: 0, seconds: secs, correct: null, ts: sv() }),
       put('scores', null),
       put('results', null),
       put('final', null),
